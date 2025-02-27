@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model tb_user {
+  id         String       @id @default(uuid())
+  name       String
+  last_name  String
+  photo      String
+  email      String       @unique
+  cpf        String       @unique
+  role       String
+  region     String
+  full_acess Boolean
+  status     Boolean
+  companyId  String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  trader     tb_trade[]
+  company    tb_company?  @relation(fields: [companyId], references: [id])
+  auth       tb_userauth?
+}
+
+model tb_userauth {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  password  String
+  salt      String
+  createdAt DateTime @default(now())
+  user      tb_user  @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model tb_company {
+  id       String       @id @default(uuid())
+  name     String
+  status   Boolean
+  nav      Float
+  accounts tb_account[]
+  users    tb_user[]
+}
+
+model tb_account {
+  id           String        @id @default(uuid())
+  companyId    String
+  status       Boolean
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  nav          Float
+  complianceId String
+  company      tb_company    @relation(fields: [companyId], references: [id])
+  compliance   tb_compliance @relation(fields: [complianceId], references: [id])
+  position     tb_position[]
+}
+
+model tb_account_counterparty {
+  id             String          @id @default(uuid())
+  counterpartyId String
+  status         Boolean
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  counterparty   tb_counterparty @relation(fields: [counterpartyId], references: [id])
+}
+
+model tb_book {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  position    tb_position?
+  trade       tb_trade?
+}
+
+model tb_position {
+  id                String            @id @default(uuid())
+  bookId            String            @unique
+  counterpartyId    String?
+  price             Float
+  instrument_type   instrument_type
+  tag               String?
+  expiry_date       DateTime?
+  daily_pnl         Float
+  mtd_pnl           Float
+  ytd_pnl           Float
+  pnl               Float
+  fees              Float
+  accountId         String
+  trades            tb_trade[]
+  orderType         OrderType?        @default(LOAN)
+  paymentType       PaymentType?      @default(FixedRate)
+  accr_method       accrual_method?   @default(ACTUAL360)
+  comp_freq         CompFreq?         @default(SIMPLE)
+  payment_frequency PaymentFrequency? @default(TERM)
+  payment_bdc       PaymentBDC        @default(MODFOLLOWING)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  status            Boolean
+  account           tb_account        @relation(fields: [accountId], references: [id])
+  book              tb_book           @relation(fields: [bookId], references: [id])
+  counterparty      tb_counterparty?  @relation(fields: [counterpartyId], references: [id])
+}
+
+model tb_trade {
+  id                String            @id @default(uuid())
+  bookId            String            @unique
+  positionId        String
+  description       String
+  instrument_type   instrument_type
+  expiry_date       DateTime?
+  trade             TxnType
+  quantity          Float
+  price             Float
+  tag               String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  counterpartyId    String
+  fees              Float
+  status            Boolean
+  trade_type        String
+  traderId          String
+  orderType         OrderType?        @default(LOAN)
+  paymentType       PaymentType?      @default(FixedRate)
+  accr_method       accrual_method?   @default(ACTUAL360)
+  comp_freq         CompFreq?         @default(SIMPLE)
+  payment_frequency PaymentFrequency? @default(TERM)
+  payment_bdc       PaymentBDC        @default(MODFOLLOWING)
+  book              tb_book           @relation(fields: [bookId], references: [id])
+  counterparty      tb_counterparty   @relation(fields: [counterpartyId], references: [id])
+  trader            tb_user           @relation(fields: [traderId], references: [id])
+  position          tb_position       @relation(fields: [positionId], references: [id])
+}
+
+model tb_counterparty {
+  id        String                    @id @default(uuid())
+  name      String                    @unique
+  number    Int                       @unique
+  account   tb_account_counterparty[]
+  positions tb_position[]
+  trades    tb_trade[]
+}
+
+model tb_compliance {
+  id          String       @id @default(uuid())
+  name        String
+  description String
+  start_date  DateTime
+  expiry_date DateTime?
+  account     tb_account[]
+}
+
+model tb_market_validator {
+  id                    String    @id @default(uuid())
+  isin                  String?   @unique
+  sedol                 String?   @unique
+  exchange              String?
+  cusip                 String?   @unique
+  ric                   String?   @unique
+  bb_ticker             String?
+  ccy                   String
+  instrument_type       String
+  dividend_frequency    String
+  listed_status         Boolean
+  status                Boolean
+  issuer                String
+  settlement_days       Int?
+  last_dividend_payment DateTime?
+}
+
+enum accrual_method {
+  UNKNWON
+  D30360
+  D30360ISMA
+  ACTUAL360
+  ACTUAL365
+  ACTUAL365F
+  ACTACT
+  ACTACTISDA
+  BUS252
+  BUS252S
+  D30360SIA
+}
+
+enum PaymentFrequency {
+  ANNUAL
+  SEMIANNUAL
+  QUATERLY
+  MONTHLY
+  WEEKLY
+  BIWEEKLY
+  DAILY
+  TERM
+  DAY28
+  DAY35
+  DAY42
+  DAY91
+  DAY182
+}
+
+enum PaymentBDC {
+  NONE
+  FOLLOWING
+  FRN
+  MODFOLLOWING
+  PRECEDING
+  MODPRECEDING
+  EOM
+  EOMF
+  EOMP
+  THIRDWED
+  EOMMODF
+  EOMMP
+}
+
+enum instrument_type {
+  EQUITY
+  EQUITYLOAN
+  EQUITYFORWARD
+  EQUITYFUTURE
+  CASH
+}
+
+enum CompFreq {
+  DAILY
+  QUARTERLY
+  SEMIANNUAL
+  MONTHLY
+  ANNUAL
+  SIMPLE
+  CONTINUOUS
+  WEEKLY
+}
+
+enum TxnType {
+  BUY
+  SELL
+  BUYTOCOVER
+  SELLSHORT
+}
+
+enum PaymentType {
+  FixedRate
+  FloatingRate
+}
+
+enum OrderType {
+  BORROW
+  UNWINDBORROW
+  UNWINDLOAN
+  LOAN
+}
